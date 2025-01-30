@@ -31,7 +31,7 @@ let cube = new THREE.Mesh(
     new THREE.MeshStandardMaterial( { color: 0xffffff} )
 
 );
-cube.position.set(0, 1.2, -10);
+cube.position.set(0, 1.5, -1);
 scene.add(cube);
 
 let dl = new THREE.DirectionalLight(0xff00ff, 0.8)

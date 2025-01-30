@@ -14,39 +14,65 @@ export function tetrahedron(base, scale)
     let p1 = [x+dx, y+dy, z]
     let p2 = [x+dx, y-dy, z]
     let p3 = [x, y, z+scale*Math.sqrt(2)]
-    return p0.concat(p1,p2,p3)
-    /*return p0.concat(p2,p1,
+    //return p0.concat(p1,p2,p3)
+    return p0.concat(p2,p1,
 	      p0,p1,p3,
 	      p0,p3,p2,
 	      p1,p2,p3
-	     )*/
+	     )
+}
+
+function average(p1, p2)
+{
+    return [
+	(p1[0]+p2[0])*0.5,
+	(p1[1]+p2[1])*0.5,
+	(p1[2]+p2[2])*0.5,
+     ]
+}
+
+export function sierpinski(base, scale, levels)
+{
+    if (levels>0) {
+	let corners = tetrahedron(base,scale)
+	let t1 = sierpinski(average(base, corners.slice(0,3)), scale*0.5, levels-1)
+	let t2 = sierpinski(average(base, corners.slice(3,6)), scale*0.5, levels-1)
+	let t3 = sierpinski(average(base, corners.slice(6,9)), scale*0.5, levels-1)
+	let t4 = sierpinski(average(base, corners.slice(21,24)), scale*0.5, levels-1)
+
+	return t1.concat(t2, t3, t4)
+    } else {
+	return tetrahedron(base, scale)
+    }
 }
 
 export function geometry()
 {
-    let vertices = new Float32Array(tetrahedron([0,0,0], 0.2))
-    
-    console.log(vertices)
+    let vertices = new Float32Array(sierpinski([0,0,0], 0.2, 2))
+    //console.log(vertices)
     
     let geometry = new THREE.BufferGeometry()
-    let indices = [0,2,1,
-		   0,1,3,
-		   0,3,2,
-		   1,2,3,]
-	/*let indices =[
-		       0,1,2,
-		       3,4,5,
-		       6,7,8,
-		       9,10,11
-		       ]*/
-    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-    geometry.setIndex(indices)
 
-    let vertex_colors = new Float32Array([1,0,0,
-					  0,1,0,
-					  0,0,1,
-					  1,1,0,])
-    // geometry.setAttribute('color', new THREE.BufferAttribute(vertex_colors, 3))
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+
+    let indices =[ ]
+    for (let i =0; i< vertices.length/3 ; i++) {
+	indices.push(i)
+    }
+    //console.log(indices)
+
+    geometry.setIndex(
+	new THREE.BufferAttribute(
+	    new Uint16Array(indices),1
+	)
+    )
+
+    /*let vertex_colors = new Float32Array([1,0,0,
+      0,1,0,
+      0,0,1,
+      1,1,0,])
+      geometry.setAttribute('color', new THREE.BufferAttribute(vertex_colors, 3))
+    */
     
     geometry.computeVertexNormals()
     return geometry
