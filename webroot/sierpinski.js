@@ -48,7 +48,8 @@ export function sierpinski(base, scale, levels)
 
 export function geometry()
 {
-    let vertices = new Float32Array(sierpinski([0,0,0], 0.2, 2))
+    let levels = 6;
+    let vertices = new Float32Array(sierpinski([0,0,0], 0.2, levels))
     //console.log(vertices)
     
     let geometry = new THREE.BufferGeometry()
