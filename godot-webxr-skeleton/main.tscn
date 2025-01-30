@@ -1,0 +1,51 @@
+[gd_scene load_steps=5 format=3 uid="uid://cyrne0jxs5nha"]
+
+[ext_resource type="Script" path="res://main.gd" id="1_1rigo"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_gipxv"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_cmyem"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_abysf"]
+albedo_color = Color(0.435294, 0, 1, 1)
+metallic = 0.1
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_1rigo")
+
+[node name="XROrigin3D" type="XROrigin3D" parent="."]
+
+[node name="XRCamera3D" type="XRCamera3D" parent="XROrigin3D"]
+
+[node name="LeftController" type="XRController3D" parent="XROrigin3D"]
+tracker = &"left_hand"
+show_when_tracked = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="XROrigin3D/LeftController"]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, 0, 0, 0)
+mesh = SubResource("BoxMesh_gipxv")
+
+[node name="RightController" type="XRController3D" parent="XROrigin3D"]
+tracker = &"right_hand"
+show_when_tracked = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="XROrigin3D/RightController"]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.1, 0, 0, 0)
+mesh = SubResource("BoxMesh_gipxv")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Button" type="Button" parent="CanvasLayer"]
+offset_left = 510.0
+offset_top = 449.0
+offset_right = 682.0
+offset_bottom = 546.0
+text = "Enter VR"
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.434696, 0)
+mesh = SubResource("TorusMesh_cmyem")
+surface_material_override/0 = SubResource("StandardMaterial3D_abysf")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -0.200821, 0.979628, 0, -0.979628, -0.200821, 0, 1.29084, -1.58243)
