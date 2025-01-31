@@ -2,13 +2,19 @@ import { geometry } from "./sierpinski.js";
 
 // Import three
 import * as THREE from 'https://unpkg.com/three/build/three.module.js';
+
+//import { ARButton } from 'https://unpkg.com/three/examples/jsm/webxr/ARButton.js';
+import { XRButton } from 'https://unpkg.com/three/examples/jsm/webxr/XRButton.js';
+
 // Import the default VRButton
-import { VRButton } from 'https://unpkg.com/three/examples/jsm/webxr/VRButton.js';
+//import { VRButton } from 'https://unpkg.com/three/examples/jsm/webxr/VRButton.js';
 
 // Make a new scene
 let scene = new THREE.Scene();
-// Set background color of the scene to gray
-scene.background = new THREE.Color(0x505050);
+if (false) {
+    // Set background color of the scene to gray
+    scene.background = new THREE.Color(0x505050);
+}
 
 // Make a camera. note that far is set to 100, which is better for realworld sized environments
 let camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -39,7 +45,7 @@ dl.position.set(0,20,0)
 scene.add(dl)
 
 // Make a renderer that fills the screen
-let renderer = new THREE.WebGLRenderer({antialias: true});
+let renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Turn on VR support
@@ -50,12 +56,13 @@ renderer.setAnimationLoop(render);
 document.body.appendChild(renderer.domElement);
 
 // Add a button to enter/exit vr to the page
-document.body.appendChild(VRButton.createButton(renderer));
+//document.body.appendChild(VRButton.createButton(renderer));
 
 // For AR instead, import ARButton at the top
 //    import { ARButton } from 'https://unpkg.com/three/examples/jsm/webxr/ARButton.js';
 // then create the button
-//  document.body.appendChild(ARButton.createButton(renderer));
+//document.body.appendChild(ARButton.createButton(renderer));
+document.body.appendChild(XRButton.createButton(renderer));
 
 // Handle browser resize
 window.addEventListener('resize', onWindowResize, false);
