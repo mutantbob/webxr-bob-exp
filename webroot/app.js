@@ -22,10 +22,10 @@ camera.position.set(0, 1.6, 0);
 scene.add(camera);
 
 // Add some lights
-var light = new THREE.DirectionalLight(0xffffff,0.5);
+/*var light = new THREE.DirectionalLight(0xffffff,0.5);
 light.position.set(1, 1, 1).normalize();
-scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff,0.5))
+scene.add(light);*/
+scene.add(new THREE.AmbientLight(0x80ff80,0.5))
 
 // Make a red cube
 let cube = new THREE.Mesh(
