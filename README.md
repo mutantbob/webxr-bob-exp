@@ -5,6 +5,9 @@ Bob's experiments with WebXR.
 To run this.
 
 ```
+# build the Rust WASM library
+(cd rust/sierpinski && wasm-pack build --target web)
+
 # tiny web server
 (cd webroot && python3 -m http.server)& 
 

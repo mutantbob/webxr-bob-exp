@@ -9,6 +9,11 @@ import { XRButton } from 'https://unpkg.com/three/examples/jsm/webxr/XRButton.js
 // Import the default VRButton
 //import { VRButton } from 'https://unpkg.com/three/examples/jsm/webxr/VRButton.js';
 
+import init, {sierpinski} from "./rust-pkg/sierpinski.js"
+
+
+function app() {
+
 // Make a new scene
 let scene = new THREE.Scene();
 if (false) {
@@ -79,3 +84,10 @@ function render(time) {
     // Draw everything
     renderer.render(scene, camera);
 }
+
+}
+
+init().then(()=>{
+    console.log("wasm ready")
+    app()
+})
