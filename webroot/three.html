@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        body {
+            margin: 0;
+            background-color: #eee;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+  <script type="module" >
+    import init, { sierpinski } from "./rust-pkg/sierpinski.js"
+    init().then( () => {
+	console.log("check")
+	let text = ""+sierpinski([0,0,0], 1, 1)
+	document.body.appendChild(document.createTextNode(text))
+    })
+    console.log("three")
+    </script>
+</head>
+<body>
+  three
+</body>
+</html>
