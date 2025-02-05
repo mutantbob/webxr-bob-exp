@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>sierpinski pyramid</title>
+    <style type="text/css">
+        body {
+            margin: 0;
+            background-color: #eee;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+  <script >
+    console.log("test")
+    </script>
+  <script type="module" >
+    import init, * as wasm from "./wasm-triangle/triangle.js"
+    console.log(wasm)
+    async function run() {
+	await init()
+
+	if (false) {
+	    wasm.go();
+	} else {
+	    var xrApp = new wasm.XrApp();
+	    xrApp.init()
+            xrApp.start();
+	}
+    }
+    run();
+    </script>
+</head>
+<body>
+  <script type="module" >
+    document.body.appendChild(document.createTextNode("pants"))
+  </script>
+  <canvas id="canvas" width=200 height=200></canvas>
+</body>
+</html>
