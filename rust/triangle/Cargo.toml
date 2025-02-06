@@ -1,14 +1,14 @@
 [package]
 name = "triangle"
 version = "0.1.0"
-publish=false
+publish = false
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
 
 [features]
-default=["console_error_panic_hook"]
+default = ["console_error_panic_hook"]
 
 [dependencies]
 futures = "0.3.4"
@@ -16,10 +16,10 @@ js-sys = "*"
 wasm-bindgen = "0.2.84"
 #wasm-bindgen = "*"
 wasm-bindgen-futures = "*"
-console_error_panic_hook = { version = "*" , optional=true}
+console_error_panic_hook = { version = "*", optional = true }
 
 [dependencies.web-sys]
-version="*"
+version = "*"
 features = [
     'Document',
     'Element',
@@ -31,7 +31,9 @@ features = [
     'RequestInit',
     'RequestMode',
     'Response',
+    'Text',
     'WebGl2RenderingContext',
+    'WebGlFramebuffer',
     'Window',
     'XrBoundedReferenceSpace',
     'XrEye',

@@ -14,20 +14,29 @@
     </style>
   <script >
     console.log("test")
+    function request_vr() {
+	let s = 	navigator.xr.requestSession()
+	console.log(s)
+    }
+
+    function debug_new_layer(session, ctx)
+    {
+	console.log(session, ctx)
+	return new XRWebGLLayer(session, ctx)
+    }
+
     </script>
   <script type="module" >
     import init, * as wasm from "./wasm-triangle/triangle.js"
     console.log(wasm)
+
     async function run() {
 	await init()
 
-	if (false) {
-	    wasm.go();
-	} else {
-	    var xrApp = new wasm.XrApp();
-	    xrApp.init()
-            xrApp.start();
-	}
+	var xrApp = new wasm.XrApp();
+	xrApp.init()
+        xrApp.start();
+	globalThis.xrApp = xrApp
     }
     run();
     </script>
@@ -37,5 +46,6 @@
     document.body.appendChild(document.createTextNode("pants"))
   </script>
   <canvas id="canvas" width=200 height=200></canvas>
+  <button id="button"> request VR</button>
 </body>
 </html>
