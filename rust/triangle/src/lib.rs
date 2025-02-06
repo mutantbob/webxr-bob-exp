@@ -100,13 +100,15 @@ impl DrawLogic {
         Self {}
     }
 
-    pub fn draw(&self, gl: &WebGl2RenderingContext) {
+    fn blue(&self) -> f32 {
         //log!("compute b");
         let x = Date::now();
         //log!("x {x:?}");
-        let b = (x % 2000.0) as f32 / 2000.0;
-        // log!("draw {b}");
-        gl.clear_color(0.0, 1.0, b, 1.0);
+        (x % 2000.0) as f32 / 2000.0
+    }
+
+    pub fn draw(&self, gl: &WebGl2RenderingContext) {
+        gl.clear_color(0.0, 1.0, self.blue(), 1.0);
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
@@ -116,7 +118,7 @@ impl DrawLogic {
         &self,
         gl: &WebGl2RenderingContext,
         _timestamp: f64,
-        frame: XrFrame,
+        frame: &XrFrame,
         viewer_ref_space: &XrReferenceSpace,
         session: &XrSession,
     ) {
@@ -156,10 +158,12 @@ impl DrawLogic {
         }
     }
 
-    pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, _view: &XrView) {
+    pub fn draw_xr_single(&self, _gl: &WebGl2RenderingContext, _view: &XrView) {
         //self.draw(gl);
     }
 }
+
+//
 
 pub struct AppInner {
     session: Option<XrSession>,
@@ -167,107 +171,8 @@ pub struct AppInner {
     viewer_ref_space: Option<XrReferenceSpace>,
 }
 
-#[wasm_bindgen]
-pub struct XrApp {
-    inner: Rc<RefCell<AppInner>>,
-}
-
-#[wasm_bindgen]
-impl XrApp {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> XrApp {
-        set_panic_hook();
-
-        // let session = Rc::new(RefCell::new(None));
-
-        let xr_mode = true;
-        log!("D");
-        let tmp = create_webgl_context(xr_mode);
-        if let Err(val) = &tmp {
-            log!("{val:?}");
-        }
-        web_sys::console::log_1(&tmp.as_ref().unwrap());
-        let gl = tmp.unwrap();
-
-        let rval = XrApp {
-            inner: Rc::new(RefCell::new(AppInner {
-                session: None,
-                gl,
-                viewer_ref_space: None,
-            })),
-        };
-        let _ = rval.attach_button();
-        rval
-    }
-
-    pub fn init(&self) -> Promise {
-        if true {
-            return Promise::resolve(&"skipped".into());
-        }
-        log!("Starting WebXR...");
-        let navigator: web_sys::Navigator = match web_sys::window() {
-            None => {
-                log!("missing window");
-                panic!("beets");
-            }
-            Some(w) => w.navigator(),
-        };
-        let xr = navigator.xr();
-
-        if xr.is_undefined() {
-            log!("undefined return from navigator.xr()");
-            log!(" session {}", self.inner.borrow().session.is_some());
-            Promise::resolve(&"no XR".into())
-        } else {
-            Self::request_xr_session_inner(xr, self.inner.clone())
-                .expect("failed to initialize webxr session")
-        }
-    }
-
-    fn attach_button(&self) -> Result<JsValue, JsValue> {
-        let document = helper::document()?;
-        let button = document
-            .get_element_by_id("button")
-            .ok_or_else(|| JsValue::from("no element button"))?;
-        let inner = self.inner.clone();
-        // let kludge = JsValue::from(kludge);
-        let closure: Closure<dyn Fn() -> Result<Promise, JsValue>> =
-            Closure::wrap(Box::new(move || {
-                log!("click");
-                // let kludge = XrApp::from(kludge);
-                log!("session {}", inner.borrow().session.is_some());
-                Self::js_request_xr(inner.clone())
-            }));
-        button.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())?;
-        closure.forget(); // leak memory?
-        Ok("ok".into())
-    }
-
-    pub fn get_gl(&self) -> JsValue {
-        JsValue::from(&self.inner.borrow().gl)
-    }
-
-    fn js_request_xr(app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
-        log!("requseting xr");
-        match Self::js_request_xr_(app) {
-            Err(e) => {
-                helper::append_to_document(&format!("boom {e:?}"))?;
-                Err(e)
-            }
-            Ok(x) => Ok(x),
-        }
-    }
-
-    fn js_request_xr_(app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
-        helper::append_to_document(" requesting xr ")?;
-        let navigator = helper::window()?.navigator();
-        Self::request_xr_session_inner(navigator.xr(), app)
-    }
-
-    fn request_xr_session_inner(
-        xr: XrSystem,
-        app: Rc<RefCell<AppInner>>,
-    ) -> Result<Promise, JsValue> {
+impl AppInner {
+    fn request_xr_session(xr: XrSystem, app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
         if app.borrow().session.is_some() {
             Ok(Promise::resolve(&JsValue::from("Session already exists")))
         } else {
@@ -301,17 +206,17 @@ impl XrApp {
                 let xr_session = wasm_bindgen_futures::JsFuture::from(xr_session_promise).await;
                 let xr_session: XrSession = xr_session?.into();
 
-                let inner = app.borrow_mut();
-                let gl = &inner.gl;
-                log!("gl {:?}", gl);
+                log!("gl {:?}", &app.borrow_mut().gl);
 
-                JsFuture::from(gl.make_xr_compatible()).await?;
+                {
+                    let gl = app.borrow().gl.clone();
+                    JsFuture::from(gl.make_xr_compatible()).await?;
+                }
                 let xr_gl_layer = if true {
-                    debug_new_layer(&xr_session, &gl)
+                    debug_new_layer(&xr_session, &app.borrow().gl)
                 } else {
-                    XrWebGlLayer::new_with_web_gl2_rendering_context(&xr_session, &gl)?
+                    XrWebGlLayer::new_with_web_gl2_rendering_context(&xr_session, &app.borrow().gl)?
                 };
-                drop(inner);
 
                 log!("layer created");
                 let render_state_init = XrRenderStateInit::new();
@@ -338,51 +243,102 @@ impl XrApp {
                 drop(app1);
                 log!("unborrowed");
 
-                request_animation_frame(animation_callback(app.clone()), app);
+                request_animation_frame(
+                    animation_callback(app.clone()).borrow().as_ref().unwrap(),
+                    &app.borrow(),
+                );
 
                 Ok(JsValue::from("Session set"))
             };
             Ok(future_to_promise(future_))
         }
     }
+}
+
+//
+
+#[wasm_bindgen]
+pub struct XrApp {
+    inner: Rc<RefCell<AppInner>>,
+}
+
+#[wasm_bindgen]
+impl XrApp {
+    #[wasm_bindgen(constructor)]
+    #[must_use]
+    pub fn new() -> XrApp {
+        set_panic_hook();
+
+        let xr_mode = true;
+        let tmp = create_webgl_context(xr_mode);
+        if let Err(val) = &tmp {
+            log!("{val:?}");
+        }
+        web_sys::console::log_1(tmp.as_ref().unwrap());
+        let gl = tmp.unwrap();
+
+        let rval = XrApp {
+            inner: Rc::new(RefCell::new(AppInner {
+                session: None,
+                gl,
+                viewer_ref_space: None,
+            })),
+        };
+        let _ = rval.attach_button();
+        rval
+    }
+
+    fn attach_button(&self) -> Result<JsValue, JsValue> {
+        let document = helper::document()?;
+        let button = document
+            .get_element_by_id("button")
+            .ok_or_else(|| JsValue::from("no element button"))?;
+        let inner = self.inner.clone();
+        // let kludge = JsValue::from(kludge);
+        let closure: Closure<dyn Fn() -> Result<Promise, JsValue>> =
+            Closure::wrap(Box::new(move || {
+                log!("click");
+                // let kludge = XrApp::from(kludge);
+                log!("session {}", inner.borrow().session.is_some());
+                Self::js_request_xr(inner.clone())
+            }));
+        button.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())?;
+        closure.forget(); // leak memory?
+        Ok("ok".into())
+    }
+
+    fn js_request_xr(app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
+        log!("requseting xr");
+        match Self::js_request_xr_(app) {
+            Err(e) => {
+                helper::append_to_document(&format!("boom {e:?}"))?;
+                Err(e)
+            }
+            Ok(x) => Ok(x),
+        }
+    }
+
+    fn js_request_xr_(app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
+        helper::append_to_document(" requesting xr ")?;
+        let navigator = helper::window()?.navigator();
+        AppInner::request_xr_session(navigator.xr(), app)
+    }
 
     pub fn start(&self) {
-        log!("start()");
-
-        let gl = &self.inner.borrow().gl;
-
-        web_sys::console::log_2(&"A ".into(), gl);
-
-        request_animation_frame(animation_callback(self.inner.clone()), self.inner.clone());
-
-        log!("session {}", self.inner.borrow().session.is_some());
-
-        log!("meh");
+        log!("XrApp::start()");
+        request_animation_frame(
+            animation_callback(self.inner.clone())
+                .borrow()
+                .as_ref()
+                .unwrap(),
+            &self.inner.borrow(),
+        );
     }
 
-    fn frame_draw_xr(
-        callback_me: &mut Option<Closure<dyn FnMut(f64, XrFrame)>>,
-        draw_logic: &DrawLogic,
-        gl: &Rc<WebGl2RenderingContext>,
-        frame: XrFrame,
-    ) -> bool {
-        log!("Frame rendering...");
-        log!("frame = {frame:?}");
-
-        let sess: XrSession = frame.session();
-
-        draw_logic.draw(&gl);
-
-        // Schedule ourself for another requestAnimationFrame callback.
-        // TODO: WebXR Samples call this at top of request_animation_frame - should this be moved?
-        request_animation_frame_xr(&sess, callback_me.as_ref().unwrap());
-        false
-    }
-
-    fn draw(timestamp: f64, xr_frame: XrFrame, inner: Rc<RefCell<AppInner>>) {
+    fn draw(timestamp: f64, xr_frame: &XrFrame, inner_app: &AppInner) {
         log!("draw");
         let draw_logic = DrawLogic::new();
-        let inner_app = inner.borrow();
+        //let inner_app = inner.borrow();
         match inner_app.session.as_ref() {
             Some(session) => {
                 draw_logic.draw_xr(
@@ -402,13 +358,6 @@ impl XrApp {
 
 //
 
-trait FlexPainter {
-    fn draw_2d(&self, gl: &Rc<WebGl2RenderingContext>);
-    fn draw_xr(&self, gl: &Rc<WebGl2RenderingContext>, xr_frame: XrFrame);
-}
-
-//
-
 pub fn animation_callback(
     app: Rc<RefCell<AppInner>>,
 ) -> Rc<RefCell<Option<Closure<dyn FnMut(f64, XrFrame)>>>> {
@@ -417,19 +366,14 @@ pub fn animation_callback(
     *cell.borrow_mut() = Some(Closure::new(move |timestamp: f64, xr_frame: XrFrame| {
         //log!("debug");
         //draw_logic.draw(gl.as_ref());
-        XrApp::draw(timestamp, xr_frame, app.clone());
-        request_animation_frame(f.clone(), app.clone());
+        XrApp::draw(timestamp, &xr_frame, &app.borrow());
+        request_animation_frame(f.borrow().as_ref().unwrap(), &app.borrow());
     }));
     cell
 }
 
-pub fn request_animation_frame(
-    callback: Rc<RefCell<Option<Closure<dyn FnMut(f64, XrFrame)>>>>,
-    app: Rc<RefCell<AppInner>>,
-) {
-    let callback = callback.borrow();
-    let callback = callback.as_ref().unwrap();
-    match app.borrow().session.as_ref() {
+pub fn request_animation_frame(callback: &Closure<dyn FnMut(f64, XrFrame)>, app: &AppInner) {
+    match app.session.as_ref() {
         None => {
             // let callback = Rc::new(RefCell::new(callback));
             // let f = callback.clone();
