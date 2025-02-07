@@ -2,7 +2,9 @@
 
 #[macro_use]
 mod utils;
+mod shaders;
 
+use crate::shaders::FlatShader;
 use js_sys::{Date, Object, Promise, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,6 +29,7 @@ macro_rules! log {
         web_sys::console::log_1(&format!( $( $t )* ).into());
     }
 }
+pub(crate) use log;
 
 mod helper {
     use wasm_bindgen::JsValue;
@@ -93,11 +96,33 @@ extern "C" {
     fn debug_new_layer(session: &XrSession, ctx: &WebGl2RenderingContext) -> XrWebGlLayer;
 }
 
-struct DrawLogic {}
+struct DrawLogic {
+    flat_shader: FlatShader,
+    triangle_vertices: WebGlBuffer,
+}
 
 impl DrawLogic {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(gl: &WebGl2RenderingContext) -> Result<Self, JsValue> {
+        let flat_shader = FlatShader::new(gl)?;
+        let triangle_vertices = gl
+            .create_buffer()
+            .ok_or_else(|| JsValue::from("failed to create buffer"))?;
+        gl.bind_buffer(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            Some(&triangle_vertices),
+        );
+        let diam = 1.0;
+        let xys = [0.0f32, diam, -diam, -diam, diam, -diam];
+        // let xys = [0.0, 0.0, 0.0, 0.001, diam, 0.0];
+        gl.buffer_data_with_array_buffer_view(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            &js_sys::Float32Array::from(xys.as_slice()),
+            WebGl2RenderingContext::STATIC_DRAW,
+        );
+        Ok(Self {
+            flat_shader,
+            triangle_vertices,
+        })
     }
 
     fn blue(&self) -> f32 {
@@ -112,6 +137,8 @@ impl DrawLogic {
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
+
+        self.flat_shader.draw(gl, 0, 3, &self.triangle_vertices)
     }
 
     pub fn draw_xr(
@@ -133,12 +160,7 @@ impl DrawLogic {
             WebGl2RenderingContext::FRAMEBUFFER,
             gl_layer.framebuffer().as_ref(),
         );
-        //log!("compute b");
-        let x = Date::now();
-        //log!("x {x:?}");
-        let b = (x % 2000.0) as f32 / 2000.0;
-        // log!("draw {b}");
-        gl.clear_color(0.0, 1.0, b, 1.0);
+        gl.clear_color(0.0, 1.0, self.blue(), 1.0);
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
@@ -158,8 +180,8 @@ impl DrawLogic {
         }
     }
 
-    pub fn draw_xr_single(&self, _gl: &WebGl2RenderingContext, _view: &XrView) {
-        //self.draw(gl);
+    pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, _view: &XrView) {
+        self.flat_shader.draw(gl, 0, 3, &self.triangle_vertices)
     }
 }
 
@@ -169,6 +191,7 @@ pub struct AppInner {
     session: Option<XrSession>,
     gl: WebGl2RenderingContext,
     viewer_ref_space: Option<XrReferenceSpace>,
+    draw_logic: DrawLogic,
 }
 
 impl AppInner {
@@ -277,11 +300,13 @@ impl XrApp {
         web_sys::console::log_1(tmp.as_ref().unwrap());
         let gl = tmp.unwrap();
 
+        let draw_logic = DrawLogic::new(&gl).unwrap();
         let rval = XrApp {
             inner: Rc::new(RefCell::new(AppInner {
                 session: None,
                 gl,
                 viewer_ref_space: None,
+                draw_logic,
             })),
         };
         let _ = rval.attach_button();
@@ -337,7 +362,7 @@ impl XrApp {
 
     fn draw(timestamp: f64, xr_frame: &XrFrame, inner_app: &AppInner) {
         log!("draw");
-        let draw_logic = DrawLogic::new();
+        let draw_logic = &inner_app.draw_logic;
         //let inner_app = inner.borrow();
         match inner_app.session.as_ref() {
             Some(session) => {
