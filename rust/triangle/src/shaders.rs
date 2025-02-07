@@ -5,7 +5,7 @@ use web_sys::{
 
 pub struct FlatShader {
     pub program: WebGlProgram,
-    pub sal_xy: i32,
+    pub sal_xy: u32,
     sal_mvp: WebGlUniformLocation,
 }
 
@@ -25,21 +25,20 @@ impl FlatShader {
 
         let status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS);
         if !status.as_bool().unwrap_or(false) {
-            Err(gl
+            return Err(gl
                 .get_program_info_log(&program)
                 .unwrap_or("shader link failure".into())
-                .into())
-        } else {
-            let sal_xy = gl.get_attrib_location(&program, "xy");
-            let sal_mvp = gl
-                .get_uniform_location(&program, "mvp")
-                .ok_or_else(|| JsValue::from("missing uniform mvp"))?;
-            Ok(Self {
-                program,
-                sal_xy,
-                sal_mvp,
-            })
+                .into());
         }
+        let sal_xy = gl.get_attrib_location(&program, "xy").try_into().unwrap();
+        let sal_mvp = gl
+            .get_uniform_location(&program, "mvp")
+            .ok_or_else(|| JsValue::from("missing uniform mvp"))?;
+        Ok(Self {
+            program,
+            sal_xy,
+            sal_mvp,
+        })
     }
 
     pub fn draw(
@@ -59,14 +58,14 @@ impl FlatShader {
             .unwrap();
         gl.bind_vertex_array(Some(&vao));
         gl.vertex_attrib_pointer_with_i32(
-            self.sal_xy as u32,
+            self.sal_xy,
             2,
             WebGl2RenderingContext::FLOAT,
             false,
             0,
             0,
         );
-        gl.enable_vertex_attrib_array(self.sal_xy as u32);
+        gl.enable_vertex_attrib_array(self.sal_xy);
 
         gl.bind_vertex_array(Some(&vao));
 

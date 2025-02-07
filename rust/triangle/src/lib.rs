@@ -1,5 +1,3 @@
-#![cfg(web_sys_unstable_apis)]
-
 #[macro_use]
 mod utils;
 mod shaders;
@@ -148,7 +146,7 @@ impl DrawLogic {
             0.0, 0.0, 0.0, 1.0, //
         ];
         self.flat_shader
-            .draw(gl, 0, 3, &self.triangle_vertices, &identity)
+            .draw(gl, 0, 3, &self.triangle_vertices, &identity);
     }
 
     pub fn draw_xr(
