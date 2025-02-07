@@ -7,7 +7,6 @@ mod shaders;
 mod test;
 
 use crate::shaders::FlatShader;
-use cgmath::{ElementWise, Transform};
 use js_sys::{Date, Float32Array, Object, Promise, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -192,11 +191,13 @@ impl DrawLogic {
     }
 
     pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, xr_view: &XrView) {
+        use glam::{vec3, vec4};
         let pv = projection_view_for(xr_view);
 
         {
-            let offset = cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, 0.0, -1.0));
-            let scale = cgmath::Matrix4::from_scale(0.2);
+            const SCALE: f32 = 0.2;
+            let scale = glam::Mat4::from_scale(vec3(SCALE, SCALE, SCALE));
+            let offset = glam::Mat4::from_translation(vec3(0.0, 0.0, -1.0));
             let model = offset * scale;
 
             let mvp = pv * model;
@@ -204,14 +205,14 @@ impl DrawLogic {
 
             if false {
                 console::log_2(&"p*v = ".into(), &Float32Array::from(mvp_flat.as_slice()));
-                let origin = cgmath::vec4(0.0, 0.0, 0.0, 1.0);
+                let origin = vec4(0.0, 0.0, 0.0, 1.0);
                 let xyzw = mvp * origin;
                 console::log_2(
                     &"xyzw = ".into(),
                     &Float32Array::from(AsRef::<[f32; 4]>::as_ref(&xyzw).as_slice()),
                 );
 
-                let xyz = xyzw.div_element_wise(xyzw[3]).truncate();
+                let xyz = (xyzw / xyzw[3]).truncate();
                 let xyz: &[f32; 3] = xyz.as_ref();
                 console::log_4(
                     &"w=".into(),
@@ -227,25 +228,22 @@ impl DrawLogic {
     }
 }
 
-fn projection_view_for(xr_view: &XrView) -> cgmath::Matrix4<f32> {
+fn projection_view_for(xr_view: &XrView) -> glam::Mat4 {
     let p = xr_view.projection_matrix();
     // console::log_2(&"proj= ".into(), &Float32Array::from(p.as_slice()));
     let view = xr_view.transform();
     // console::log_2(&"view= ".into(), &view);
-    let vm = to_mat4(&view.matrix()).inverse_transform().unwrap();
+    let vm = to_mat4(&view.matrix()).inverse();
     let pm = to_mat4(&p);
     pm * vm
 }
 
-pub fn to_mat4(src: &[f32]) -> cgmath::Matrix4<f32> {
-    if src.len() == 16 {
-        let mut rval = cgmath::Matrix4::from_scale(1.0);
-        let x: &mut [f32; 16] = rval.as_mut();
-        x.copy_from_slice(src);
-        rval
-    } else {
-        panic!("matrix {}", src.len());
-    }
+#[must_use]
+pub fn to_mat4(src: &[f32]) -> glam::Mat4 {
+    let v16 = src
+        .try_into()
+        .unwrap_or_else(|_| panic!("matrix {}", src.len()));
+    glam::Mat4::from_cols_array(v16)
 }
 
 //
