@@ -1,9 +1,12 @@
 use wasm_bindgen::JsValue;
-use web_sys::{console, WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlShader};
+use web_sys::{
+    console, WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlShader, WebGlUniformLocation,
+};
 
 pub struct FlatShader {
     pub program: WebGlProgram,
     pub sal_xy: i32,
+    sal_mvp: WebGlUniformLocation,
 }
 
 static FLAT_VS: &str = include_str!("flat.vert");
@@ -28,7 +31,14 @@ impl FlatShader {
                 .into())
         } else {
             let sal_xy = gl.get_attrib_location(&program, "xy");
-            Ok(Self { program, sal_xy })
+            let sal_mvp = gl
+                .get_uniform_location(&program, "mvp")
+                .ok_or_else(|| JsValue::from("missing uniform mvp"))?;
+            Ok(Self {
+                program,
+                sal_xy,
+                sal_mvp,
+            })
         }
     }
 
@@ -38,6 +48,7 @@ impl FlatShader {
         offset: i32,
         vertex_count: i32,
         buffer: &WebGlBuffer,
+        projection_matrix: &[f32],
     ) {
         gl.use_program(Some(&self.program));
         gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(buffer));
@@ -58,6 +69,8 @@ impl FlatShader {
         gl.enable_vertex_attrib_array(self.sal_xy as u32);
 
         gl.bind_vertex_array(Some(&vao));
+
+        gl.uniform_matrix4fv_with_f32_array(Some(&self.sal_mvp), false, projection_matrix);
 
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, offset, vertex_count);
     }

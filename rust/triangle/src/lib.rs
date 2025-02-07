@@ -3,9 +3,12 @@
 #[macro_use]
 mod utils;
 mod shaders;
+#[cfg(test)]
+mod test;
 
 use crate::shaders::FlatShader;
-use js_sys::{Date, Object, Promise, Reflect};
+use cgmath::{ElementWise, Transform};
+use js_sys::{Date, Float32Array, Object, Promise, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::set_panic_hook;
@@ -133,12 +136,20 @@ impl DrawLogic {
     }
 
     pub fn draw(&self, gl: &WebGl2RenderingContext) {
+        //gl.viewport(0, 0, 200, 200);
         gl.clear_color(0.0, 1.0, self.blue(), 1.0);
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
 
-        self.flat_shader.draw(gl, 0, 3, &self.triangle_vertices)
+        let identity = [
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0, //
+        ];
+        self.flat_shader
+            .draw(gl, 0, 3, &self.triangle_vertices, &identity)
     }
 
     pub fn draw_xr(
@@ -149,7 +160,7 @@ impl DrawLogic {
         viewer_ref_space: &XrReferenceSpace,
         session: &XrSession,
     ) {
-        log!("get pose");
+        // log!("get pose");
         let viewer_pose = frame.get_viewer_pose(viewer_ref_space);
         let Some(viewer_pose) = viewer_pose else {
             return;
@@ -169,7 +180,7 @@ impl DrawLogic {
             // console::log_2(&"view ".into(), &view);
             let view = &XrView::from(view);
             let viewport = gl_layer.get_viewport(view).unwrap();
-            console::log_2(&"viewport ".into(), &viewport);
+            // console::log_2(&"viewport ".into(), &viewport);
             gl.viewport(
                 viewport.x(),
                 viewport.y(),
@@ -180,8 +191,60 @@ impl DrawLogic {
         }
     }
 
-    pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, _view: &XrView) {
-        self.flat_shader.draw(gl, 0, 3, &self.triangle_vertices)
+    pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, xr_view: &XrView) {
+        let pv = projection_view_for(xr_view);
+
+        {
+            let offset = cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, 0.0, -1.0));
+            let scale = cgmath::Matrix4::from_scale(0.2);
+            let model = offset * scale;
+
+            let mvp = pv * model;
+            let mvp_flat: &[f32; 16] = mvp.as_ref();
+
+            if false {
+                console::log_2(&"p*v = ".into(), &Float32Array::from(mvp_flat.as_slice()));
+                let origin = cgmath::vec4(0.0, 0.0, 0.0, 1.0);
+                let xyzw = mvp * origin;
+                console::log_2(
+                    &"xyzw = ".into(),
+                    &Float32Array::from(AsRef::<[f32; 4]>::as_ref(&xyzw).as_slice()),
+                );
+
+                let xyz = xyzw.div_element_wise(xyzw[3]).truncate();
+                let xyz: &[f32; 3] = xyz.as_ref();
+                console::log_4(
+                    &"w=".into(),
+                    &xyzw[3].into(),
+                    &"origin transformed = ".into(),
+                    &Float32Array::from(xyz.as_slice()),
+                );
+            }
+
+            self.flat_shader
+                .draw(gl, 0, 3, &self.triangle_vertices, mvp_flat);
+        }
+    }
+}
+
+fn projection_view_for(xr_view: &XrView) -> cgmath::Matrix4<f32> {
+    let p = xr_view.projection_matrix();
+    // console::log_2(&"proj= ".into(), &Float32Array::from(p.as_slice()));
+    let view = xr_view.transform();
+    // console::log_2(&"view= ".into(), &view);
+    let vm = to_mat4(&view.matrix()).inverse_transform().unwrap();
+    let pm = to_mat4(&p);
+    pm * vm
+}
+
+pub fn to_mat4(src: &[f32]) -> cgmath::Matrix4<f32> {
+    if src.len() == 16 {
+        let mut rval = cgmath::Matrix4::from_scale(1.0);
+        let x: &mut [f32; 16] = rval.as_mut();
+        x.copy_from_slice(src);
+        rval
+    } else {
+        panic!("matrix {}", src.len());
     }
 }
 
