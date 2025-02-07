@@ -3,16 +3,24 @@ use crate::shaders::{GradientShader, TextureShader};
 use image::{DynamicImage, ImageError};
 use std::io::Cursor;
 use wasm_bindgen::JsValue;
-use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlTexture};
+use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlTexture, WebGlVertexArrayObject};
 
 pub struct GradientTriangle {
-    pub flat_shader: GradientShader,
+    pub shader: GradientShader,
     pub triangle_vertices: WebGlBuffer,
+    pub vao: WebGlVertexArrayObject,
 }
 
 impl GradientTriangle {
     pub fn new(gl: &WebGl2RenderingContext) -> Result<Self, JsValue> {
-        let flat_shader = GradientShader::new(gl)?;
+        let shader = GradientShader::new(gl)?;
+
+        let vao = gl
+            .create_vertex_array()
+            .ok_or_else(|| JsValue::from_str("failed to create vao"))
+            .unwrap();
+        gl.bind_vertex_array(Some(&vao));
+
         let triangle_vertices = gl
             .create_buffer()
             .ok_or_else(|| JsValue::from("failed to create buffer"))?;
@@ -29,15 +37,28 @@ impl GradientTriangle {
             WebGl2RenderingContext::STATIC_DRAW,
         );
 
+        gl.vertex_attrib_pointer_with_i32(
+            shader.sal_xy,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+        gl.enable_vertex_attrib_array(shader.sal_xy);
+
+        gl.bind_vertex_array(None);
+
         Ok(Self {
-            flat_shader,
+            shader,
             triangle_vertices,
+            vao,
         })
     }
 
     pub fn draw(&self, gl: &WebGl2RenderingContext, mvp: &[f32; 16]) {
-        self.flat_shader
-            .draw(gl, 0, 3, &self.triangle_vertices, mvp);
+        self.shader
+            .draw(gl, 0, 3, &self.vao, mvp);
     }
 }
 
@@ -45,16 +66,22 @@ impl GradientTriangle {
 
 pub struct SohmahPoster {
     pub shader: TextureShader,
-    pub square_vertices: WebGlBuffer,
-    pub indices: WebGlBuffer,
+    square_vertices: WebGlBuffer,
+    indices: WebGlBuffer,
     index_count: i32,
-
     tex_id: WebGlTexture,
+    vao: WebGlVertexArrayObject,
 }
 
 impl SohmahPoster {
     pub fn new(gl: &WebGl2RenderingContext) -> Result<Self, JsValue> {
         let shader = TextureShader::new(gl)?;
+
+        let vao = gl
+            .create_vertex_array()
+            .ok_or_else(|| JsValue::from_str("failed to create vao"))
+            .unwrap();
+        gl.bind_vertex_array(Some(&vao));
 
         let square_vertices = gl.create_buffer().ok_or("failed to create buffer")?;
         gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&square_vertices));
@@ -75,6 +102,18 @@ impl SohmahPoster {
             WebGl2RenderingContext::STATIC_DRAW,
         );
 
+        gl.vertex_attrib_pointer_with_i32(
+            shader.sal_xy,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+        gl.enable_vertex_attrib_array(shader.sal_xy);
+
+        gl.bind_vertex_array(None);
+
         let image = sohma_poster().map_err(|e| JsValue::from(format!("{e}")))?;
 
         let tex_id = texture_from_image(gl, &image)?;
@@ -85,6 +124,7 @@ impl SohmahPoster {
             indices,
             index_count: indices_u8.len().try_into().unwrap(),
             tex_id,
+            vao,
         })
     }
 
@@ -96,8 +136,7 @@ impl SohmahPoster {
         self.shader.draw(
             gl,
             self.index_count,
-            &self.square_vertices,
-            &self.indices,
+            &self.vao,
             mvp,
             tex_index.try_into().unwrap(),
         );

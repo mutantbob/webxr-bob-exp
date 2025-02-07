@@ -1,6 +1,7 @@
 use wasm_bindgen::JsValue;
 use web_sys::{
     console, WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlShader, WebGlUniformLocation,
+    WebGlVertexArrayObject,
 };
 
 pub struct GradientShader {
@@ -31,32 +32,18 @@ impl GradientShader {
         gl: &WebGl2RenderingContext,
         offset: i32,
         vertex_count: i32,
-        buffer: &WebGlBuffer,
+        vao: &WebGlVertexArrayObject,
         projection_matrix: &[f32],
     ) {
         gl.use_program(Some(&self.program));
-        gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(buffer));
-
-        let vao = gl
-            .create_vertex_array()
-            .ok_or_else(|| JsValue::from_str("failed to create vao"))
-            .unwrap();
-        gl.bind_vertex_array(Some(&vao));
-        gl.vertex_attrib_pointer_with_i32(
-            self.sal_xy,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
-        gl.enable_vertex_attrib_array(self.sal_xy);
 
         gl.bind_vertex_array(Some(&vao));
 
         gl.uniform_matrix4fv_with_f32_array(Some(&self.sul_mvp), false, projection_matrix);
 
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, offset, vertex_count);
+
+        gl.bind_vertex_array(None);
     }
 }
 
@@ -94,35 +81,13 @@ impl TextureShader {
         &self,
         gl: &WebGl2RenderingContext,
         index_count: i32,
-        vertex_buffer: &WebGlBuffer,
-        index_buffer: &WebGlBuffer,
+        vao: &WebGlVertexArrayObject,
         projection_matrix: &[f32],
         texture_id: i32,
     ) {
         gl.use_program(Some(&self.program));
-        gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(vertex_buffer));
-
-        let vao = gl
-            .create_vertex_array()
-            .ok_or_else(|| JsValue::from_str("failed to create vao"))
-            .unwrap();
-        gl.bind_vertex_array(Some(&vao));
-        gl.vertex_attrib_pointer_with_i32(
-            self.sal_xy,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
-        gl.enable_vertex_attrib_array(self.sal_xy);
 
         gl.bind_vertex_array(Some(&vao));
-
-        gl.bind_buffer(
-            WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
-            Some(index_buffer),
-        );
 
         gl.uniform_matrix4fv_with_f32_array(Some(&self.sul_mvp), false, projection_matrix);
         gl.uniform1i(Some(&self.sul_tex), texture_id);
@@ -133,6 +98,8 @@ impl TextureShader {
             WebGl2RenderingContext::UNSIGNED_BYTE,
             0,
         );
+
+        gl.bind_vertex_array(None);
     }
 }
 
