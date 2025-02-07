@@ -7,4 +7,5 @@ void main()
 {
     gl_Position = mvp*vec4(xy,0.0, 1.0);
     uv = (xy+1.0)*0.5;
+    uv = vec2(uv.x, 1.0-uv.y);
 }

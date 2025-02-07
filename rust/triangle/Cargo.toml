@@ -19,6 +19,7 @@ wasm-bindgen-futures = "*"
 console_error_panic_hook = { version = "*", optional = true }
 #cgmath = "*"
 glam = "*"
+image = "*"
 
 [dependencies.web-sys]
 version = "*"
@@ -39,6 +40,7 @@ features = [
     'WebGlFramebuffer',
     'WebGlProgram',
     'WebGlShader',
+    'WebGlTexture',
     'WebGlUniformLocation',
     'WebGlVertexArrayObject',
     'Window',

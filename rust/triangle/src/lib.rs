@@ -1,16 +1,17 @@
 #[macro_use]
 mod utils;
+mod objects;
 mod shaders;
 #[cfg(test)]
 mod test;
 
-use crate::shaders::FlatShader;
-use js_sys::{Date, Float32Array, Object, Promise, Reflect};
+use js_sys::{Date, Object, Promise, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;
 use utils::set_panic_hook;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
+#[allow(clippy::wildcard_imports)]
 use web_sys::*;
 
 #[wasm_bindgen]
@@ -29,6 +30,7 @@ macro_rules! log {
         web_sys::console::log_1(&format!( $( $t )* ).into());
     }
 }
+use crate::objects::{GradientTriangle, SohmahPoster};
 pub(crate) use log;
 
 mod helper {
@@ -97,56 +99,43 @@ extern "C" {
 }
 
 struct DrawLogic {
-    flat_shader: FlatShader,
-    triangle_vertices: WebGlBuffer,
+    gradient_triangle: GradientTriangle,
+
+    sohma_poster: SohmahPoster,
 }
 
 impl DrawLogic {
     pub fn new(gl: &WebGl2RenderingContext) -> Result<Self, JsValue> {
-        let flat_shader = FlatShader::new(gl)?;
-        let triangle_vertices = gl
-            .create_buffer()
-            .ok_or_else(|| JsValue::from("failed to create buffer"))?;
-        gl.bind_buffer(
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            Some(&triangle_vertices),
-        );
-        let diam = 1.0;
-        let xys = [0.0f32, diam, -diam, -diam, diam, -diam];
-        // let xys = [0.0, 0.0, 0.0, 0.001, diam, 0.0];
-        gl.buffer_data_with_array_buffer_view(
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            &js_sys::Float32Array::from(xys.as_slice()),
-            WebGl2RenderingContext::STATIC_DRAW,
-        );
         Ok(Self {
-            flat_shader,
-            triangle_vertices,
+            gradient_triangle: GradientTriangle::new(gl)?,
+            sohma_poster: SohmahPoster::new(gl)?,
         })
     }
 
-    fn blue(&self) -> f32 {
-        //log!("compute b");
-        let x = Date::now();
-        //log!("x {x:?}");
-        (x % 2000.0) as f32 / 2000.0
+    fn blue() -> f32 {
+        const PERIOD: f64 = 10000.0;
+        let now = Date::now();
+        ((now % PERIOD) / PERIOD) as f32
     }
 
     pub fn draw(&self, gl: &WebGl2RenderingContext) {
-        //gl.viewport(0, 0, 200, 200);
-        gl.clear_color(0.0, 1.0, self.blue(), 1.0);
+        use glam::{vec3, Mat4};
+        const SCALE: f32 = 0.4;
+
+        gl.clear_color(0.0, 1.0, Self::blue(), 1.0);
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
 
-        let identity = [
-            1.0, 0.0, 0.0, 0.0, //
-            0.0, 1.0, 0.0, 0.0, //
-            0.0, 0.0, 1.0, 0.0, //
-            0.0, 0.0, 0.0, 1.0, //
-        ];
-        self.flat_shader
-            .draw(gl, 0, 3, &self.triangle_vertices, &identity);
+        let scale = Mat4::from_scale(vec3(SCALE, SCALE, SCALE));
+        {
+            let model = (Mat4::from_translation(vec3(-0.5, 0.0, 0.0)) * scale).to_cols_array();
+            self.gradient_triangle.draw(gl, &model);
+        }
+        {
+            let model = (Mat4::from_translation(vec3(0.5, 0.0, 0.0)) * scale).to_cols_array();
+            self.sohma_poster.draw(gl, &model);
+        }
     }
 
     pub fn draw_xr(
@@ -168,7 +157,7 @@ impl DrawLogic {
             WebGl2RenderingContext::FRAMEBUFFER,
             gl_layer.framebuffer().as_ref(),
         );
-        gl.clear_color(0.0, 1.0, self.blue(), 1.0);
+        gl.clear_color(0.0, 1.0, Self::blue(), 1.0);
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
@@ -189,39 +178,30 @@ impl DrawLogic {
     }
 
     pub fn draw_xr_single(&self, gl: &WebGl2RenderingContext, xr_view: &XrView) {
-        use glam::{vec3, vec4};
+        use glam::vec3;
         let pv = projection_view_for(xr_view);
 
         {
             const SCALE: f32 = 0.2;
             let scale = glam::Mat4::from_scale(vec3(SCALE, SCALE, SCALE));
-            let offset = glam::Mat4::from_translation(vec3(0.0, 0.0, -1.0));
+            let offset = glam::Mat4::from_translation(vec3(-0.3, 0.0, -1.0));
             let model = offset * scale;
 
             let mvp = pv * model;
             let mvp_flat: &[f32; 16] = mvp.as_ref();
 
-            if false {
-                console::log_2(&"p*v = ".into(), &Float32Array::from(mvp_flat.as_slice()));
-                let origin = vec4(0.0, 0.0, 0.0, 1.0);
-                let xyzw = mvp * origin;
-                console::log_2(
-                    &"xyzw = ".into(),
-                    &Float32Array::from(AsRef::<[f32; 4]>::as_ref(&xyzw).as_slice()),
-                );
+            self.gradient_triangle.draw(gl, mvp_flat);
+        }
+        {
+            const SCALE: f32 = 0.2;
+            let scale = glam::Mat4::from_scale(vec3(SCALE, SCALE, SCALE));
+            let offset = glam::Mat4::from_translation(vec3(0.3, 0.0, -1.0));
+            let model = offset * scale;
 
-                let xyz = (xyzw / xyzw[3]).truncate();
-                let xyz: &[f32; 3] = xyz.as_ref();
-                console::log_4(
-                    &"w=".into(),
-                    &xyzw[3].into(),
-                    &"origin transformed = ".into(),
-                    &Float32Array::from(xyz.as_slice()),
-                );
-            }
+            let mvp = pv * model;
+            let mvp_flat: &[f32; 16] = mvp.as_ref();
 
-            self.flat_shader
-                .draw(gl, 0, 3, &self.triangle_vertices, mvp_flat);
+            self.sohma_poster.draw(gl, mvp_flat);
         }
     }
 }
