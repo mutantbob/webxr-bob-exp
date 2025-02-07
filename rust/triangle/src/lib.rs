@@ -1,7 +1,8 @@
 #[macro_use]
 mod utils;
-mod objects;
-mod shaders;
+pub mod gl_thin;
+pub mod objects;
+pub mod shaders;
 #[cfg(test)]
 mod test;
 
@@ -98,9 +99,8 @@ extern "C" {
     fn debug_new_layer(session: &XrSession, ctx: &WebGl2RenderingContext) -> XrWebGlLayer;
 }
 
-struct DrawLogic {
+pub struct DrawLogic {
     gradient_triangle: GradientTriangle,
-
     sohma_poster: SohmahPoster,
 }
 
@@ -203,6 +203,10 @@ impl DrawLogic {
 
             self.sohma_poster.draw(gl, mvp_flat);
         }
+    }
+
+    pub fn release(self, gl: &WebGl2RenderingContext) {
+        self.sohma_poster.release(gl);
     }
 }
 

@@ -1,6 +1,6 @@
 use wasm_bindgen::JsValue;
 use web_sys::{
-    console, WebGl2RenderingContext, WebGlBuffer, WebGlProgram, WebGlShader, WebGlUniformLocation,
+    console, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
     WebGlVertexArrayObject,
 };
 
@@ -37,7 +37,7 @@ impl GradientShader {
     ) {
         gl.use_program(Some(&self.program));
 
-        gl.bind_vertex_array(Some(&vao));
+        gl.bind_vertex_array(Some(vao));
 
         gl.uniform_matrix4fv_with_f32_array(Some(&self.sul_mvp), false, projection_matrix);
 
@@ -87,7 +87,7 @@ impl TextureShader {
     ) {
         gl.use_program(Some(&self.program));
 
-        gl.bind_vertex_array(Some(&vao));
+        gl.bind_vertex_array(Some(vao));
 
         gl.uniform_matrix4fv_with_f32_array(Some(&self.sul_mvp), false, projection_matrix);
         gl.uniform1i(Some(&self.sul_tex), texture_id);
@@ -100,6 +100,10 @@ impl TextureShader {
         );
 
         gl.bind_vertex_array(None);
+    }
+
+    pub fn release(self, gl: &WebGl2RenderingContext) {
+        gl.delete_program(Some(&self.program));
     }
 }
 
