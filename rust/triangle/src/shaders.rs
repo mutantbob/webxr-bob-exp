@@ -157,7 +157,6 @@ pub fn load_shader(
     gl.compile_shader(&shader);
 
     let status = gl.get_shader_parameter(&shader, WebGl2RenderingContext::COMPILE_STATUS);
-    console::log_2(&"E ".into(), &status);
     if status.as_bool().unwrap_or(false) {
         Ok(shader)
     } else {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>sierpinski pyramid</title>
+    <title>Rust WebXR demo</title>
     <style type="text/css">
         body {
             margin: 0;
@@ -13,35 +13,24 @@
         }
     </style>
   <script >
-    console.log("test")
-    function request_vr() {
-	let s = 	navigator.xr.requestSession()
-	console.log(s)
-    }
-
-    function debug_new_layer(session, ctx)
-    {
-	console.log(session, ctx)
-	return new XRWebGLLayer(session, ctx)
-    }
-
-    </script>
+    console.log("XR rust demo")
+  </script>
   <script type="module" >
     import init, * as wasm from "./wasm-triangle/triangle.js"
     console.log(wasm)
 
     async function run() {
-	await init()
+	await init() // wasm stuff
 
 	var xrApp = new wasm.XrApp();
         xrApp.start();
-	globalThis.xrApp = xrApp
+	globalThis.xrApp = xrApp // for debugging later
     }
     run();
     </script>
 </head>
 <body>
   <canvas id="canvas" width=400 height=400></canvas>
-  <button id="button"> <big>request VR</big></button>
+  <button id="button"> <span style="font-size: 36pt">request VR</style></button>
 </body>
 </html>

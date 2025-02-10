@@ -267,42 +267,29 @@ impl AppInner {
                 let xr_session = wasm_bindgen_futures::JsFuture::from(xr_session_promise).await;
                 let xr_session: XrSession = xr_session?.into();
 
-                log!("gl {:?}", &app.borrow_mut().gl);
-
                 {
                     let gl = app.borrow().gl.clone();
                     JsFuture::from(gl.make_xr_compatible()).await?;
                 }
-                let xr_gl_layer = if true {
-                    debug_new_layer(&xr_session, &app.borrow().gl)
-                } else {
-                    XrWebGlLayer::new_with_web_gl2_rendering_context(&xr_session, &app.borrow().gl)?
-                };
+                let xr_gl_layer = XrWebGlLayer::new_with_web_gl2_rendering_context(
+                    &xr_session,
+                    &app.borrow().gl,
+                )?;
 
-                log!("layer created");
                 let render_state_init = XrRenderStateInit::new();
                 render_state_init.set_base_layer(Some(&xr_gl_layer));
                 xr_session.update_render_state_with_state(&render_state_init);
 
-                console::log_3(
-                    &"space request ".into(),
-                    &xr_session,
-                    &XrReferenceSpaceType::Local.into(),
-                );
                 let world_ref_space =
                     xr_session.request_reference_space(XrReferenceSpaceType::Local);
                 let world_ref_space = JsFuture::from(world_ref_space).await?;
                 let world_ref_space = XrReferenceSpace::from(world_ref_space);
 
-                console::log_2(&"space ".into(), &world_ref_space);
-
                 let mut app1 = app.borrow_mut();
-                log!("borrowed");
                 app1.session = Some(xr_session);
 
                 app1.viewer_ref_space = Some(world_ref_space);
                 drop(app1);
-                log!("unborrowed");
 
                 request_animation_frame(
                     animation_callback(app.clone()).borrow().as_ref().unwrap(),
@@ -333,9 +320,8 @@ impl XrApp {
         let xr_mode = true;
         let tmp = create_webgl_context(xr_mode);
         if let Err(val) = &tmp {
-            log!("{val:?}");
+            console::log_2(&"malfunction creating webgl_context".into(), val);
         }
-        web_sys::console::log_1(tmp.as_ref().unwrap());
         let gl = tmp.unwrap();
 
         let draw_logic = DrawLogic::new(&gl).unwrap();
@@ -359,19 +345,13 @@ impl XrApp {
         let inner = self.inner.clone();
         // let kludge = JsValue::from(kludge);
         let closure: Closure<dyn Fn() -> Result<Promise, JsValue>> =
-            Closure::wrap(Box::new(move || {
-                log!("click");
-                // let kludge = XrApp::from(kludge);
-                log!("session {}", inner.borrow().session.is_some());
-                Self::js_request_xr(inner.clone())
-            }));
+            Closure::wrap(Box::new(move || Self::js_request_xr(inner.clone())));
         button.add_event_listener_with_callback("click", closure.as_ref().unchecked_ref())?;
         closure.forget(); // leak memory?
         Ok("ok".into())
     }
 
     fn js_request_xr(app: Rc<RefCell<AppInner>>) -> Result<Promise, JsValue> {
-        log!("requseting xr");
         match Self::js_request_xr_(app) {
             Err(e) => {
                 helper::append_to_document(&format!("boom {e:?}"))?;
@@ -388,7 +368,6 @@ impl XrApp {
     }
 
     pub fn start(&self) {
-        log!("XrApp::start()");
         request_animation_frame(
             animation_callback(self.inner.clone())
                 .borrow()
@@ -399,7 +378,6 @@ impl XrApp {
     }
 
     fn draw(timestamp: f64, xr_frame: &XrFrame, inner_app: &AppInner) {
-        log!("draw");
         let draw_logic = &inner_app.draw_logic;
         //let inner_app = inner.borrow();
         match inner_app.session.as_ref() {

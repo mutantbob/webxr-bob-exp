@@ -29,8 +29,6 @@ impl GradientTriangle {
             (diam, -diam, 0, 0, 0xff).into(),
         ];
 
-        log!(" xyrgb size {}", size_of::<XYRGB>());
-
         let triangle_vertices = {
             let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
@@ -158,7 +156,6 @@ impl XYRGB {
         let raw_slice = {
             let ptr = xys.as_ptr();
             let size = size_of_val(xys);
-            log!(" array size {}", size);
             unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), size) }
         };
         gl.buffer_data_with_array_buffer_view(
@@ -207,7 +204,6 @@ fn texture_from_image(
     image: &DynamicImage,
 ) -> Result<WebGlTexture, JsValue> {
     let x = image.color();
-    log!("image color space {x:?}");
     let rgb = match &image {
         DynamicImage::ImageRgb8(img) => img.as_flat_samples(),
         _ => return Err(JsValue::from("unable to extract RGB samples from image")),
