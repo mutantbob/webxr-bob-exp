@@ -1,14 +1,14 @@
-use crate::gl_thin::GlBuffer;
+use crate::gl_thin::HomogeneousGlBuffer;
 use crate::shaders::{GradientShader, TextureShader};
 use crate::{gl_thin, log};
 use image::{DynamicImage, ImageError};
 use std::io::Cursor;
 use wasm_bindgen::JsValue;
-use web_sys::{WebGl2RenderingContext, WebGlTexture, WebGlVertexArrayObject};
+use web_sys::{WebGl2RenderingContext, WebGlBuffer, WebGlTexture, WebGlVertexArrayObject};
 
 pub struct GradientTriangle {
     pub shader: GradientShader,
-    pub triangle_vertices: GlBuffer<f32>,
+    pub triangle_vertices: WebGlBuffer,
     pub vao: WebGlVertexArrayObject,
 }
 
@@ -22,22 +22,28 @@ impl GradientTriangle {
             .unwrap();
         gl.bind_vertex_array(Some(&vao));
 
-        let diam = 1.0;
-        let xys = [
-            0.0f32, diam, 1.0, 0.0, 0.0, //
-            -diam, -diam, 0.0, 1.0, 0.0, //
-            diam, -diam, 0.0, 0.0, 1.0,
+        let diam: f32 = 1.0;
+        let xys: [XYRGB; 3] = [
+            (0.0f32, diam, 0xff, 0, 0).into(), //
+            (-diam, -diam, 0, 0xff, 0).into(), //
+            (diam, -diam, 0, 0, 0xff).into(),
         ];
 
-        let triangle_vertices = GlBuffer::new_bound(
-            gl,
-            &xys,
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            WebGl2RenderingContext::STATIC_DRAW,
-        )?;
+        log!(" xyrgb size {}", size_of::<XYRGB>());
 
-        triangle_vertices.vertex_attrib_pointer(gl, shader.sal_rgb, 3, false, 5, 2);
-        triangle_vertices.vertex_attrib_pointer(gl, shader.sal_xy, 2, false, 5, 0);
+        let triangle_vertices = {
+            let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
+            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
+            XYRGB::load_buffer(
+                gl,
+                WebGl2RenderingContext::ARRAY_BUFFER,
+                &xys,
+                WebGl2RenderingContext::STATIC_DRAW,
+            );
+            buffer
+        };
+
+        XYRGB::gl_attr(gl, shader.sal_xy, shader.sal_rgb);
 
         gl.bind_vertex_array(None);
 
@@ -57,8 +63,8 @@ impl GradientTriangle {
 
 pub struct SohmahPoster {
     pub shader: TextureShader,
-    square_vertices: GlBuffer<f32>,
-    indices: GlBuffer<u8>,
+    square_vertices: HomogeneousGlBuffer<f32>,
+    indices: HomogeneousGlBuffer<u8>,
     index_count: i32,
     tex_id: WebGlTexture,
     vao: WebGlVertexArrayObject,
@@ -76,7 +82,7 @@ impl SohmahPoster {
 
         let diam = 1.0;
         let xys = [-diam, -diam, diam, -diam, -diam, diam, diam, diam];
-        let square_vertices = gl_thin::GlBuffer::new_bound(
+        let square_vertices = gl_thin::HomogeneousGlBuffer::new_bound(
             gl,
             &xys,
             WebGl2RenderingContext::ARRAY_BUFFER,
@@ -84,7 +90,7 @@ impl SohmahPoster {
         )?;
 
         let indices_u8 = [0, 1, 2, 2, 1, 3];
-        let indices = GlBuffer::new_bound(
+        let indices = HomogeneousGlBuffer::new_bound(
             gl,
             &indices_u8,
             WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER,
@@ -128,6 +134,69 @@ impl SohmahPoster {
         self.indices.release(gl);
         self.shader.release(gl);
         gl.delete_vertex_array(Some(&self.vao));
+    }
+}
+
+//
+
+/// We use this for a heterogenous interleaved GL buffer of vertex data.
+/// The X and Y can be used raw, but we should ask GL to "normalize" the r,g,b values.
+/// 12 bytes:
+///
+/// `xxxxyyyyrgb_`
+#[repr(C)]
+pub struct XYRGB {
+    x: f32,
+    y: f32,
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+impl XYRGB {
+    pub fn load_buffer(gl: &WebGl2RenderingContext, target: u32, xys: &[XYRGB], usage: u32) {
+        let raw_slice = {
+            let ptr = xys.as_ptr();
+            let size = size_of_val(xys);
+            log!(" array size {}", size);
+            unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), size) }
+        };
+        gl.buffer_data_with_array_buffer_view(
+            target,
+            &js_sys::Uint8Array::from(raw_slice).into(),
+            usage,
+        );
+    }
+
+    /// configure the current VAO to pull `vec2 xy;` and `vec3: rgb` from the active buffer
+    pub fn gl_attr(gl: &WebGl2RenderingContext, sal_xy: u32, sal_rgb: u32) {
+        // heterogeneous buffer layout
+        gl.vertex_attrib_pointer_with_i32(
+            sal_rgb,
+            3,
+            WebGl2RenderingContext::UNSIGNED_BYTE,
+            true, // convert from u8 to f32: a/255
+            size_of::<XYRGB>().try_into().unwrap(),
+            (2 * size_of::<f32>()).try_into().unwrap(),
+        );
+        gl.enable_vertex_attrib_array(sal_rgb);
+
+        gl.vertex_attrib_pointer_with_i32(
+            sal_xy,
+            2,
+            WebGl2RenderingContext::FLOAT,
+            false,
+            size_of::<XYRGB>().try_into().unwrap(),
+            0,
+        );
+        gl.enable_vertex_attrib_array(sal_xy);
+    }
+}
+
+impl From<(f32, f32, u8, u8, u8)> for XYRGB {
+    #[allow(clippy::many_single_char_names)]
+    fn from((x, y, r, g, b): (f32, f32, u8, u8, u8)) -> Self {
+        Self { x, y, r, g, b }
     }
 }
 

@@ -2,13 +2,15 @@ use js_sys::{Float32Array, Object, Uint8Array};
 use std::marker::PhantomData;
 use web_sys::{WebGl2RenderingContext, WebGlBuffer};
 
-pub struct GlBuffer<T> {
+/// A wrapper to make working with homogeneous GL data buffers easier.
+/// If you mix types in your GL buffer, this class will not be useful.
+pub struct HomogeneousGlBuffer<T> {
     pub buffer: WebGlBuffer,
     pub target: u32,
     phantom: PhantomData<T>,
 }
 
-impl<T> GlBuffer<T>
+impl<T> HomogeneousGlBuffer<T>
 where
     [T]: ToBufferPayload,
 {
@@ -47,7 +49,7 @@ where
     }
 }
 
-impl<T> GlBuffer<T>
+impl<T> HomogeneousGlBuffer<T>
 where
     T: GlType,
 {
@@ -59,6 +61,9 @@ where
     ///
     /// `offset` - the position of this attribute within the row.
     ///  Will be multiplied by the byte-size of the element type to provide GL with a byte offset.
+    ///
+    /// # see also
+    /// [MDN docs with example](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/vertexAttribPointer)
     pub fn vertex_attrib_pointer(
         &self,
         gl: &WebGl2RenderingContext,
@@ -68,6 +73,7 @@ where
         stride: i32,
         offset: i32,
     ) {
+        #[allow(clippy::cast_possible_wrap)]
         gl.vertex_attrib_pointer_with_i32(
             shader_attribute_location,
             element_size,
@@ -81,7 +87,7 @@ where
     }
 }
 
-impl<T> GlBuffer<T> {
+impl<T> HomogeneousGlBuffer<T> {
     pub fn release(self, gl: &WebGl2RenderingContext) {
         gl.delete_buffer(Some(&self.buffer));
     }
