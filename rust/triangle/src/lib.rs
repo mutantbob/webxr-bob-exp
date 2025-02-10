@@ -157,7 +157,7 @@ impl DrawLogic {
             WebGl2RenderingContext::FRAMEBUFFER,
             gl_layer.framebuffer().as_ref(),
         );
-        gl.clear_color(0.0, 1.0, Self::blue(), 1.0);
+        gl.clear_color(0.0, 0.0, 0.0, 0.0); // need this for camera pass-through
         gl.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
         );
@@ -242,22 +242,17 @@ impl AppInner {
         if app.borrow().session.is_some() {
             Ok(Promise::resolve(&JsValue::from("Session already exists")))
         } else {
-            log!("Y2 {}", xr.is_undefined());
             if xr.is_undefined() {
                 return Err(JsValue::from("navigator.xr undefined"));
             }
-            let session_mode = XrSessionMode::ImmersiveVr;
-            log!("Y3");
-            log!("{xr:?} {session_mode:?}");
+            let session_mode = XrSessionMode::ImmersiveAr; // for camera pass-through
+                                                           // log!("{xr:?} {session_mode:?}");
             let session_supported_promise = xr.is_session_supported(session_mode);
 
-            log!("Y4");
             // Note: &self is on the stack so we can't use it in a future (which will
             // run after the &self reference is out or scope). Clone ref to the parts
             // of self we'll need, then move them into the Future
             // See https://github.com/rustwasm/wasm-bindgen/issues/1858#issuecomment-552095511
-
-            log!("Y2");
 
             let future_ = async move {
                 let supports_session =
