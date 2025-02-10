@@ -5,8 +5,11 @@ Bob's experiments with WebXR.
 To run this.
 
 ```
-# build the Rust WASM library
+# build the first Rust WASM library (sierpinski geometry)
 (cd rust/sierpinski && wasm-pack build --target web)
+
+# build the second Rust WASM library (all-Rust WebXR example application)
+(cd rust/triangle && RUSTFLAGS="--cfg web_sys_unstable_apis " wasm-pack build --target web --dev )
 
 # tiny web server
 (cd webroot && python3 -m http.server)& 
