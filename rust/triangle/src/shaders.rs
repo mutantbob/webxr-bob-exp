@@ -7,6 +7,7 @@ use web_sys::{
 pub struct GradientShader {
     pub program: WebGlProgram,
     pub sal_xy: u32,
+    pub sal_rgb: u32,
     pub sul_mvp: WebGlUniformLocation,
 }
 
@@ -17,12 +18,14 @@ impl GradientShader {
     pub fn new(gl: &WebGl2RenderingContext) -> Result<GradientShader, JsValue> {
         let program = simple_shader_program(gl, FLAT_VS, FLAT_FS)?;
         let sal_xy = gl.get_attrib_location(&program, "xy").try_into().unwrap();
+        let sal_rgb = gl.get_attrib_location(&program, "rgb").try_into().unwrap();
         let sul_mvp = gl
             .get_uniform_location(&program, "mvp")
             .ok_or_else(|| JsValue::from("missing uniform mvp"))?;
         Ok(Self {
             program,
             sal_xy,
+            sal_rgb,
             sul_mvp,
         })
     }

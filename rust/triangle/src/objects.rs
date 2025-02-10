@@ -23,7 +23,11 @@ impl GradientTriangle {
         gl.bind_vertex_array(Some(&vao));
 
         let diam = 1.0;
-        let xys = [0.0f32, diam, -diam, -diam, diam, -diam];
+        let xys = [
+            0.0f32, diam, 1.0, 0.0, 0.0, //
+            -diam, -diam, 0.0, 1.0, 0.0, //
+            diam, -diam, 0.0, 0.0, 1.0,
+        ];
 
         let triangle_vertices = GlBuffer::new_bound(
             gl,
@@ -32,7 +36,8 @@ impl GradientTriangle {
             WebGl2RenderingContext::STATIC_DRAW,
         )?;
 
-        triangle_vertices.vertex_attrib_pointer(gl, shader.sal_xy, 2, false, 0, 0);
+        triangle_vertices.vertex_attrib_pointer(gl, shader.sal_rgb, 3, false, 5, 2);
+        triangle_vertices.vertex_attrib_pointer(gl, shader.sal_xy, 2, false, 5, 0);
 
         gl.bind_vertex_array(None);
 

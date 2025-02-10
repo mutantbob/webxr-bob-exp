@@ -51,6 +51,14 @@ impl<T> GlBuffer<T>
 where
     T: GlType,
 {
+    ///  This is unsuitable for use with mixed-type rows because it assumes all the attributes in the buffer have the same type `T`.
+    /// # params
+    ///
+    /// `stride` - the count of elements in each row of the array.
+    ///  Will be multiplied by the byte-size of the element type to provide GL with a byte size.
+    ///
+    /// `offset` - the position of this attribute within the row.
+    ///  Will be multiplied by the byte-size of the element type to provide GL with a byte offset.
     pub fn vertex_attrib_pointer(
         &self,
         gl: &WebGl2RenderingContext,
@@ -58,15 +66,15 @@ where
         element_size: i32,
         normalized: bool,
         stride: i32,
-        byte_offset: i32,
+        offset: i32,
     ) {
         gl.vertex_attrib_pointer_with_i32(
             shader_attribute_location,
             element_size,
             <T as GlType>::my_type(),
             normalized,
-            stride,
-            byte_offset,
+            stride * size_of::<T>() as i32,
+            offset * size_of::<T>() as i32,
         );
 
         gl.enable_vertex_attrib_array(shader_attribute_location);
